@@ -16,6 +16,7 @@
                   :exclusions [org.mozilla/rhino]]
                  [rum "0.11.3"]
                  [cljs-http "0.1.46"]
+                 [com.andrewmcveigh/cljs-time "0.5.2"]
 
 
                  [ch.qos.logback/logback-classic "1.2.3"]

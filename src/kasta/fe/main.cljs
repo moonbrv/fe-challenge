@@ -2,7 +2,9 @@
   (:require-macros [cljs.core.async.macros :refer [go]])
   (:require [rum.core :as rum]
             [cljs-http.client :as http]
-            [cljs.core.async :refer [<!]]))
+            [cljs.core.async :refer [<!]]
+            [cljs-time.core :refer [within? now]]
+            [cljs-time.coerce :refer [from-string]]))
 
 ;; ----- MODEL -----
 (defonce state (atom {:campaigns []
@@ -23,6 +25,12 @@
   {:will-mount (fn [state]
                  (fetch-campaigns) state)})
 
+;; ----- UTILS -----
+(defn campaign-active? [campaign]
+  (let [start-time (from-string (:starts_at campaign))
+        end-time (from-string (:finishes_at campaign))]
+    (within? start-time end-time (now))))
+
 ;; ----- VIEWS -----
 (rum/defc campaigns-card [campaign]
   [:div.box
@@ -40,7 +48,8 @@
   < fetch-campaigns-mixin
     rum/reactive
   []
-    [:div.container (campaigns-grid (rum/react campaigns) (rum/react active-filters))])
+  (let [active-campaigns (filter campaign-active? (rum/react campaigns))]
+    [:div.container (campaigns-grid active-campaigns (rum/react active-filters))]))
 
 
 (defn ^:export trigger-render []
