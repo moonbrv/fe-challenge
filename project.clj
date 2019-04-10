@@ -15,6 +15,8 @@
                  [org.clojure/clojurescript "1.10.520"
                   :exclusions [org.mozilla/rhino]]
                  [rum "0.11.3"]
+                 [cljs-http "0.1.46"]
+
 
                  [ch.qos.logback/logback-classic "1.2.3"]
                  [org.clojure/tools.logging "0.4.1"]]
