@@ -26,21 +26,33 @@
         tag-map (generate-tag-map available-filters)]
     (map #(get tag-map %) available-tags)))
 
+(defn get-matched-campaigns [campaigns-list filter-set]
+  (if (empty? filter-set)
+    campaigns-list
+    (filter (fn [camp]
+              (let [tags-set (set (clojure.string/split (:tags camp) #""))]
+                (not (empty? (clojure.set/intersection filter-set tags-set))))) campaigns-list)))
+
 ;; ----- MODEL -----
-(defonce state (atom {:campaigns []
-                      :active-filters #{}
+(defonce state (atom {:campaigns         []
+                      :active-filters    #{}
                       :available-filters []}))
 
 (def campaigns (rum/cursor-in state [:campaigns]))
 (def active-filters (rum/cursor-in state [:active-filters]))
+(def campaigns-filters (rum/cursor-in state [:available-filters]))
 
 (defn fetch-campaigns []
   (go (let [response (<! (http/get "/api/campaigns"))
             data (:body response)
             active-campaigns (filter campaign-active? (:items data))
             available-filters (get-active-campaigns-filters active-campaigns (:menu data))]
-        (swap! state merge {:campaigns active-campaigns
+        (swap! state merge {:campaigns         active-campaigns
                             :available-filters available-filters}))))
+
+(defn filters-has-intersection [tags filters]
+  (let [tag-set (set tags)]
+    (not (empty? (clojure.set/intersection tag-set filters)))))
 
 ;; ----- MIXINS -----
 (def fetch-campaigns-mixin
@@ -55,18 +67,31 @@
      [:div.content
       [:p [:strong (:name campaign)] [:br] (:description campaign)]]]]])
 
-(rum/defc campaigns-grid [campaigns-list active-filters]
+(rum/defc campaigns-grid [campaigns-list]
   [:div.columns.is-multiline
    (for [campaign campaigns-list]
      [:div.column.is-half (rum/with-key (campaigns-card campaign) (:id campaign))])])
+
+(rum/defc buttons-list < rum/reactive []
+  [:div.columns
+   [(for [campaign-filter (rum/react campaigns-filters)]
+      (let [all-active-filters (rum/react active-filters)
+            tag (:tag campaign-filter)
+            is-active-filter (filters-has-intersection tag all-active-filters)]
+        [:div.column [:button.button {:on-click (fn []
+                                                  (if is-active-filter
+                                                    (swap! active-filters #(reduce disj % tag))
+                                                    (swap! active-filters #(reduce conj % tag))))
+                                      :class    (if is-active-filter "is-primary" nil)}
+                      (:name campaign-filter)]]))]])
 
 (rum/defc Root
   < fetch-campaigns-mixin
     rum/reactive
   []
-  [:div.container
-   [:pre (str (:available-filters (rum/react state)))]
-   (campaigns-grid (rum/react campaigns) (rum/react active-filters))])
+  [:section.section
+   [:div.container.has-text-centered (buttons-list)]
+   [:div.container (campaigns-grid (get-matched-campaigns (rum/react campaigns) (rum/react active-filters)))]])
 
 
 (defn ^:export trigger-render []
