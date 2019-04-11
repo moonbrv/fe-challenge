@@ -35,11 +35,11 @@
 
 ;; ----- MODEL -----
 (defonce state (atom {:campaigns         []
-                      :active-filters    #{}
+                      :active-tags       #{}
                       :available-filters []}))
 
 (def campaigns (rum/cursor-in state [:campaigns]))
-(def active-filters (rum/cursor-in state [:active-filters]))
+(def active-filters (rum/cursor-in state [:active-tags]))
 (def campaigns-filters (rum/cursor-in state [:available-filters]))
 
 (defn fetch-campaigns []
