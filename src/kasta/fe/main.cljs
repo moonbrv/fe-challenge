@@ -70,7 +70,7 @@
 (rum/defc campaigns-grid [campaigns-list]
   [:div.columns.is-multiline
    (for [campaign campaigns-list]
-     [:div.column.is-half (rum/with-key (campaigns-card campaign) (:id campaign))])])
+     [:div.column.is-half {:key (:id campaign)} (campaigns-card campaign)])])
 
 (rum/defc buttons-list < rum/reactive []
   [:div.columns
@@ -78,7 +78,7 @@
       (let [all-active-filters (rum/react active-filters)
             tag (:tag campaign-filter)
             is-active-filter (filters-has-intersection tag all-active-filters)]
-        [:div.column [:button.button {:on-click (fn []
+        [:div.column {:key (:name campaign-filter)} [:button.button {:on-click (fn []
                                                   (if is-active-filter
                                                     (swap! active-filters #(reduce disj % tag))
                                                     (swap! active-filters #(reduce conj % tag))))
