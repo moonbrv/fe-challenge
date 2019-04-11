@@ -6,6 +6,26 @@
             [cljs-time.core :refer [within? now]]
             [cljs-time.coerce :refer [from-string]]))
 
+;; ----- UTILS -----
+(defn campaign-active? [campaign]
+  (let [start-time (from-string (:starts_at campaign))
+        end-time (from-string (:finishes_at campaign))]
+    (within? start-time end-time (now))))
+
+(defn generate-tag-map [available-filters]
+  (reduce (fn [xs x]
+            (reduce (fn [acc tag]
+                      (assoc acc tag x)) xs (:tag x))) {} available-filters))
+
+(defn get-tags-from-campaigns [campaigns]
+  (disj (reduce (fn [xs x]
+                  (into xs (clojure.string/split (:tags x) #""))) #{} campaigns) ""))
+
+(defn get-active-campaigns-filters [active-campaigns available-filters]
+  (let [available-tags (get-tags-from-campaigns active-campaigns)
+        tag-map (generate-tag-map available-filters)]
+    (map #(get tag-map %) available-tags)))
+
 ;; ----- MODEL -----
 (defonce state (atom {:campaigns []
                       :active-filters #{}
@@ -16,20 +36,16 @@
 
 (defn fetch-campaigns []
   (go (let [response (<! (http/get "/api/campaigns"))
-            data (:body response)]
-        (swap! state merge {:campaigns (:items data)
-                            :available-filters (:menu data)}))))
+            data (:body response)
+            active-campaigns (filter campaign-active? (:items data))
+            available-filters (get-active-campaigns-filters active-campaigns (:menu data))]
+        (swap! state merge {:campaigns active-campaigns
+                            :available-filters available-filters}))))
 
 ;; ----- MIXINS -----
 (def fetch-campaigns-mixin
   {:will-mount (fn [state]
                  (fetch-campaigns) state)})
-
-;; ----- UTILS -----
-(defn campaign-active? [campaign]
-  (let [start-time (from-string (:starts_at campaign))
-        end-time (from-string (:finishes_at campaign))]
-    (within? start-time end-time (now))))
 
 ;; ----- VIEWS -----
 (rum/defc campaigns-card [campaign]
@@ -48,8 +64,9 @@
   < fetch-campaigns-mixin
     rum/reactive
   []
-  (let [active-campaigns (filter campaign-active? (rum/react campaigns))]
-    [:div.container (campaigns-grid active-campaigns (rum/react active-filters))]))
+  [:div.container
+   [:pre (str (:available-filters (rum/react state)))]
+   (campaigns-grid (rum/react campaigns) (rum/react active-filters))])
 
 
 (defn ^:export trigger-render []
